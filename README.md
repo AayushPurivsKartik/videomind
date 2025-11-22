@@ -17,7 +17,7 @@ Examples:
 
 ## Run Locally
 ```bash
-git clone https://github.com/yourname/VideoMind.git
-cd VideoMind
+git clone https://github.com/AayushPurivsKartik/videomind.git
+cd videoMind
 pip install -r requirements.txt
 python main.py
