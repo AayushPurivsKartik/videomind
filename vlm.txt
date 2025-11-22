@@ -1,0 +1,67 @@
+# utils/vlm_captioner.py  ← FAST VERSION (base model)
+from transformers import AutoProcessor, AutoModelForCausalLM
+import torch
+from PIL import Image
+
+class Florence2Captioner:
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            print("Loading Florence-2 BASE (fast on CPU)...")
+            cls._instance = super(Florence2Captioner, cls).__new__(cls)
+            model_id = "multimodalart/Florence-2-base-no-flash-attn"  # ← BASE = 3–10× faster
+            cls._instance.device = "cpu"
+            
+            cls._instance.model = AutoModelForCausalLM.from_pretrained(
+                model_id, trust_remote_code=True
+            ).to(cls._instance.device).eval()
+            
+            cls._instance.processor = AutoProcessor.from_pretrained(
+                model_id, trust_remote_code=True
+            )
+            print("Florence-2 BASE loaded – super fast on CPU!")
+        return cls._instance
+
+    @torch.no_grad()
+    def describe(self, image_path: str, detail: str = "detailed") -> str:
+        image = Image.open(image_path).convert("RGB")
+        task_prompt = "<DETAILED_CAPTION>" if detail == "detailed" else "<CAPTION>"
+        
+        inputs = self.processor(text=task_prompt, images=image, return_tensors="pt")
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        
+        generated_ids = self.model.generate(
+            input_ids=inputs["input_ids"],
+            pixel_values=inputs["pixel_values"],
+            max_new_tokens=128,
+            do_sample=False,
+            num_beams=3,
+        )
+        generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        return generated_text.strip()
+
+captioner = Florence2Captioner()
+
+
+
+# second that is more fast
+
+# utils/vlm_captioner.py  ← INSTANT TESTING VERSION
+class Florence2Captioner:
+    def __init__(self):
+        print("Using INSTANT fake captioner (for demo speed)")
+
+    def describe(self, image_path: str, detail="detailed") -> str:
+        import os
+        i = int(os.path.basename(image_path).replace("frame_", "").replace(".jpg", ""))
+        fake = [
+            "A silver car turning into a parking space",
+            "A white SUV driving slowly in the parking lot",
+            "A person walking between parked cars",
+            "Multiple cars in a sunny parking lot",
+            "A red car backing out",
+        ]
+        return fake[i % len(fake)]
+
+captioner = Florence2Captioner()
